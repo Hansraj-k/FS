@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced 3-Scale Ingredient Analyzer (V9)</title>
+    <title>Advanced 3-Scale Ingredient Analyzer (V10)</title>
     
     <style>
         body {
@@ -12,9 +12,9 @@
             color: #2c3e50;
             padding: 20px;
         }
-.footerimg {
-    height: 100px;
-}
+        .footerimg {
+            height: 100px;
+        }
         .container {
             max-width: 800px;
             margin: 0 auto;
@@ -124,6 +124,7 @@
             margin: 0;
             font-size: 1em;
             color: #34495e;
+            margin-bottom: 5px;
         }
         .gauge-item p {
             font-size: 0.9em;
@@ -149,7 +150,7 @@
         }
 
         .ingredient-item p {
-            line-height: 1.5; /* Increased line spacing for readability */
+            line-height: 1.5; 
         }
 
         .ingredient-item h3 {
@@ -178,10 +179,10 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔍 Advanced Ingredient Assessment</h1>
-        <p class="prompt">Enter your ingredient list below. Analysis includes Health, Naturalness, Dietary Classification, and **Quality Standard Notes**.</p>
+        <h1>🔍 Advanced Ingredient Assessment (V10)</h1>
+        <p class="prompt">Enter your ingredient list below. Analysis includes Health, Naturalness, Dietary Classification, and **Fat/Oil Risk Assessment**.</p>
 
-        <textarea id="ingredientInput" rows="7" placeholder="Example: Tomato Paste (28%), Sugar, Salt, Acidity Regulator (260), Stabilizers (1422, 415), Preservatives (211), Onion Powder, Oregano, Garlic Powder, Ghee."></textarea>
+        <textarea id="ingredientInput" rows="7" placeholder="Example: Tomato Paste (28%), Palm Oil, Sugar, Salt, Acidity Regulator (260), Stabilizers (415), Onion Powder, Oregano."></textarea>
         <button id="analyzeButton">Analyze Ingredients</button>
 
         <div id="results" class="results-container">
@@ -220,6 +221,12 @@
             'wheat flour': 'Flour has regulatory limits for defects due to storage and processing.',
             'condiments': 'Depending on specific ingredients, many condiments (spices, purees) fall under regulatory defect limits.',
         };
+
+        // NEW DICTIONARY: High-Saturated/Processed Fats for Health Flagging (V10)
+        const highRiskFatDictionary = [
+            'palm oil', 'ghee', 'tallow', 'butter', 'coconut oil', 'hydrogenated oil', 'vegetable fat', 'partially hydrogenated'
+        ];
+
 
         // --- Grade and Color Mapping (Professional Language) ---
         function getGradeInfo(score) {
@@ -288,6 +295,7 @@
             let goodHealthIngredients = 0; 
             let naturalIngredients = 0; 
             let additiveCount = 0;
+            let highFatCount = 0; 
 
             let containsNonVeg = false;
             let containsEgg = false;
@@ -330,7 +338,9 @@
                 // Initial Dietary Check for Common Ingredients
                 if (name.includes('meat') || name.includes('chicken') || name.includes('beef') || name.includes('pork') || name.includes('fish') || name.includes('gelatin') || name.includes('tallow') || name.includes('ghee')) {
                     containsNonVeg = true;
-                    source = 'Non-Veg (Meat/Animal Fat)';
+                    if (!name.includes('ghee') && !name.includes('tallow')) { 
+                        source = 'Non-Veg (Meat/Animal)';
+                    }
                 } else if (name.includes('egg') || name.includes('albumen') || name.includes('yolk')) {
                     containsEgg = true;
                     source = 'Contains Egg';
@@ -342,13 +352,10 @@
                 // Determine the source description part, including quality check for veg/plant.
                 let sourceDescription = `The dietary source is **${source}**.`;
                 if (qualityNote) {
-                    // Specific wording for vegetable/plant sources that may contain defects
                     sourceDescription = `The dietary source is **Vegetable/Plant**, but this ingredient **may contain trace levels of unavoidable defects** (e.g., insect fragments or mold) due to regulatory limits on agricultural products.`;
                 } else if (source === 'Vegetable/Plant') {
-                    // Standard wording for clean vegetable/plant sources
                     sourceDescription = `The dietary source is **${source}**.`;
                 }
-
 
                 // Additive Check
                 if (name.includes('regulator') || name.includes('stabilizer') || name.includes('preservative') || name.includes('dye') || (codeOrPercent && !isNaN(parseInt(codeOrPercent.split(',')[0])))) {
@@ -376,7 +383,6 @@
                     ratingColor = '🟠';
                     safetyRating = 'Synthetic Additive / E-Number';
                     
-                    // COMPREHENSIVE EXPLANATION: ADDITIVE (Source Description updated based on new 'source' variable)
                     simpleExplanation = `**IMPACT: Naturalness Risk.** This ingredient is a synthetic or chemically modified additive (${codesFound.join('; ') || 'E-numbers'}) used to improve shelf life, stabilize texture, or enhance color. Its presence indicates heavy industrial processing, detracting from the product's natural integrity. The dietary source is typically **${source}**.`;
                     isNatural = false;
                     
@@ -384,7 +390,6 @@
                     ratingColor = '🔴';
                     safetyRating = 'High Added Sugar/Sweetener';
                     
-                    // COMPREHENSIVE EXPLANATION: SUGAR
                     simpleExplanation = `**IMPACT: Health Risk.** This ingredient is a concentrated caloric sweetener. Given its high position on the ingredient list, the product contains a significant amount of added sugar, which should be **strictly limited** in a regular diet. ${sourceDescription}`;
                     isNatural = false;
                     goodHealthIngredients--; 
@@ -393,15 +398,34 @@
                     ratingColor = '🟡';
                     safetyRating = 'High Sodium/Flavor Enhancer';
                     
-                    // COMPREHENSIVE EXPLANATION: SALT
                     simpleExplanation = `**IMPACT: Health Consideration.** Salt is necessary for flavor and preservation, but it is a primary source of sodium. High intake is strongly linked to hypertension and cardiovascular issues. Monitoring sodium content is important for overall health. ${sourceDescription}`;
                     isNatural = true;
+
+                } else if (highRiskFatDictionary.some(fat => name.includes(fat))) { 
+                    highFatCount++;
+                    ratingColor = '🟡';
+                    safetyRating = 'High Saturated/Processed Fat';
+                    
+                    // Set correct source for animal fats
+                    if (name.includes('ghee') || name.includes('butter') || name.includes('cream')) { 
+                        source = 'Contains Dairy';
+                        containsDairy = true; 
+                    } 
+                    else if (name.includes('tallow')) { 
+                        source = 'Non-Veg (Animal Fat)'; 
+                        containsNonVeg = true; 
+                    }
+                    else { 
+                        source = 'Vegetable/Plant'; 
+                    }
+                    
+                    simpleExplanation = `**IMPACT: Health Consideration (Fat).** This ingredient is high in saturated fat or is a heavily processed fat (like hydrogenated oil). High consumption of these fats is associated with cardiovascular risk. Consumption should be limited. The dietary source is **${source}**.`;
+                    isNatural = true; 
 
                 } else if (name.includes('powder') || name.includes('condiments')) {
                     ratingColor = '🟡';
                     safetyRating = 'Processed Whole Food';
                     
-                    // COMPREHENSIVE EXPLANATION: PROCESSED FOOD/SPICE
                     simpleExplanation = `**IMPACT: Quality/Purity.** This component is derived from a whole food (like a vegetable or spice) but is used in a dried, concentrated, or powdered form. While generally low health risk, it suggests that processed forms are used instead of fresh ingredients. ${sourceDescription}`;
                     isNatural = true;
 
@@ -409,13 +433,12 @@
                     ratingColor = '✅';
                     safetyRating = 'Low-Risk Ingredient';
                     
-                    // COMPREHENSIVE EXPLANATION: WHOLE FOOD/LOW-RISK
                     simpleExplanation = `**IMPACT: Positive.** This is either an unmodified whole food (e.g., fruit, vegetable) or an inherently low-risk, natural component. It contributes positively to the overall health and quality score. ${sourceDescription}`;
                     isNatural = true;
                 }
                 
                 // Update metrics
-                if (ratingColor !== '🔴' && ratingColor !== '🟠') { 
+                if (ratingColor !== '🔴' && ratingColor !== '🟠' && ratingColor !== '🟡') { 
                     goodHealthIngredients++;
                 }
                 if (isNatural) {
@@ -432,7 +455,7 @@
                 };
             });
 
-            // --- 5. DIETARY CLASSIFICATION LOGIC (Unchanged) ---
+            // --- 5. DIETARY CLASSIFICATION LOGIC ---
             let finalDietaryClassification = '100% Veg 🟢';
             let dietaryEmoji = '🟢';
             
@@ -449,7 +472,7 @@
                  dietaryEmoji = '🟠';
             }
 
-            // --- 6. SCORING LOGIC (Unchanged) ---
+            // --- 6. SCORING LOGIC ---
             
             const pHealth = totalIngredients > 0 ? ((goodHealthIngredients / totalIngredients) * 100) : 0;
             const pNatural = totalIngredients > 0 ? ((naturalIngredients / totalIngredients) * 100) : 0;
@@ -461,7 +484,8 @@
             // 1. HEALTH SCORE
             if (sugarPosition !== -1 && sugarPosition < 3) { healthScore = 'D'; } 
             else if (sugarPosition !== -1 && sugarPosition < 5) { healthScore = 'C'; } 
-            else if (pHealth < 75) { healthScore = 'B'; } 
+            // RULE: Downgrade if high-risk fat is present or health ingredients are low
+            else if (highFatCount > 0 || pHealth < 75) { healthScore = 'B'; } 
             else if (pHealth < 50) { healthScore = 'C'; }
 
             // 2. NATURAL SCORE
@@ -490,6 +514,9 @@
             if (additiveCount > 0) {
                 overallMessage += `<br> 🧪 **Synthetic Ingredients:** Found **${additiveCount}** synthetic additives, which reduces the Naturalness Grade.`;
             }
+            if (highFatCount > 0) { 
+                 overallMessage += `<br> ⚠️ **Saturated/Processed Fat:** Found **${highFatCount}** ingredient(s) high in saturated or processed fat, reducing the Health Grade.`;
+            }
             
             return {
                 summary: {
@@ -506,7 +533,7 @@
             };
         }
 
-        // --- DISPLAY FUNCTIONS (Unchanged) ---
+        // --- DISPLAY FUNCTIONS ---
 
         function displayResults(data) {
             const healthSummaryDiv = document.getElementById('healthSummary');
@@ -543,7 +570,7 @@
                     </div>
                 </div>
                 <p style="padding: 0 10px; font-weight: bold;">
-                    ${data.summary.message}
+                    ${data.summary.message || 'This list receives a strong rating with no major health or processing flags.'}
                 </p>
             `;
 
@@ -581,7 +608,7 @@
                     <tbody>
                         <tr><td>**A+**</td><td>**Pristine.** Highest quality, virtually zero concerns.</td><td>**Daily Recommendation**</td></tr>
                         <tr><td>**A**</td><td>**Excellent.** Very clean, minor processed forms only.</td><td>**Regular Consumption**</td></tr>
-                        <tr><td>**B**</td><td>**Good.** Moderate sugar position or one non-critical additive.</td><td>**Weekly Consumption**</td></tr>
+                        <tr><td>**B**</td><td>**Good.** Moderate sugar/salt/fat position or one non-critical additive.</td><td>**Weekly Consumption**</td></tr>
                         <tr><td>**C**</td><td>**Fair.** Sugar/Salt is high up (top 5) or multiple synthetic additives.</td><td>**Occasional Consumption**</td></tr>
                         <tr><td>**D**</td><td>**Poor.** High sugar/salt concentration and heavy industrial processing.</td><td>**Minimize or Avoid**</td></tr>
                     </tbody>
