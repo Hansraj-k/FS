@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced 3-Scale Ingredient Analyzer (V9)</title>
+    
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            color: #2c3e50;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #3498db;
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        p.prompt {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 25px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            box-sizing: border-box;
+            resize: vertical;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        textarea:focus {
+            border-color: #3498db;
+        }
+
+        #analyzeButton {
+            display: block;
+            width: 100%;
+            background-color: #2ecc71;
+            color: white;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        #analyzeButton:hover {
+            background-color: #27ae60;
+            transform: translateY(-2px);
+        }
+
+        /* Results Styling */
+        .results-container {
+            margin-top: 35px;
+            padding-top: 25px;
+            border-top: 1px solid #ecf0f1;
+        }
+        
+        /* Dietary Classification Box */
+        .dietary-box {
+            background-color: #f0f7ff;
+            border: 2px solid #3498db;
+            color: #2980b9;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        /* Circular Gauge Concept */
+        .gauge-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .gauge-item {
+            text-align: center;
+            margin: 10px 5px;
+            padding: 10px;
+            flex: 1 1 30%; 
+        }
+        
+        .gauge-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 5px;
+            font-size: 1.5em;
+            font-weight: 900;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .gauge-item h3 {
+            margin: 0;
+            font-size: 1em;
+            color: #34495e;
+        }
+        .gauge-item p {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin: 3px 0 0;
+        }
+        
+        .assessment-summary {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .ingredient-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 6px solid #3498db; 
+            background-color: #ecf0f1;
+            border-radius: 4px;
+        }
+
+        .ingredient-item p {
+            line-height: 1.5; /* Increased line spacing for readability */
+        }
+
+        .ingredient-item h3 {
+            margin-top: 0;
+            color: #2980b9;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .grade-legend table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+            margin-top: 15px;
+            border: 1px solid #ecf0f1;
+        }
+        .grade-legend th, .grade-legend td {
+            border: 1px solid #ecf0f1;
+            padding: 8px;
+            text-align: left;
+        }
+        .grade-legend th {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Advanced Ingredient Assessment</h1>
+        <p class="prompt">Enter your ingredient list below. Analysis includes Health, Naturalness, Dietary Classification, and **Quality Standard Notes**.</p>
+
+        <textarea id="ingredientInput" rows="7" placeholder="Example: Tomato Paste (28%), Sugar, Salt, Acidity Regulator (260), Stabilizers (1422, 415), Preservatives (211), Onion Powder, Oregano, Garlic Powder, Ghee."></textarea>
+        <button id="analyzeButton">Analyze Ingredients</button>
+
+        <div id="results" class="results-container">
+            <h2>Analysis Report</h2>
+            <div id="dietaryClassification"></div> 
+            <div id="healthSummary"></div>
+            <div id="ingredientDetails"></div>
+            <div id="gradeExplanation" class="grade-legend"></div>
+        </div>
+    </div>
+<p class="end"> <a href="https://hansrajweb.netlify.app"> <img class="img" src="rkspsauswbhkb.png" alt="Footer Logo"> </a> </p>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+             document.getElementById('analyzeButton').addEventListener('click', analyzeIngredients);
+        });
+
+        // Dictionary for common additive codes (E-numbers in some countries)
+        const codeDictionary = {
+            '260': { name: 'Acetic Acid (Acidity Regulator)', source: 'Veg' },
+            '1422': { name: 'Acetylated Distarch Adipate (Thickener/Stabilizer)', source: 'Veg' },
+            '415': { name: 'Xanthan Gum (Stabilizer/Thickener)', source: 'Veg' },
+            '211': { name: 'Sodium Benzoate (Preservative)', source: 'Veg' },
+            '330': { name: 'Citric Acid (Acidifier/Preservative)', source: 'Veg' },
+            '471': { name: 'Mono- and diglycerides', source: 'Ambiguous (Can be Animal/Veg)' },
+            '120': { name: 'Cochineal (Red Dye)', source: 'Non-Veg (Insect)' },
+            '901': { name: 'Beeswax (Glazing Agent)', source: 'Non-Veg (Bee)' }
+        };
+
+        // Ingredients subject to "Food Defect Action Levels"
+        const qualityCheckDictionary = {
+            'oregano': 'Dried herbs like oregano are subject to regulatory limits for unavoidable defects like insect fragments or rodent hairs, as set by food safety authorities.',
+            'pepper': 'Ground spices often carry regulatory limits for defects, including mold and insect parts, due to field harvesting and processing.',
+            'garlic powder': 'Dried, ground vegetables can contain specified levels of mold or insect fragments, regulated by government standards.',
+            'onion powder': 'Dried, ground vegetables can contain specified levels of mold or insect fragments, regulated by government standards.',
+            'tomato paste': 'Processed tomato products have specified limits on mold count and unavoidable field contaminants.',
+            'wheat flour': 'Flour has regulatory limits for defects due to storage and processing.',
+            'condiments': 'Depending on specific ingredients, many condiments (spices, purees) fall under regulatory defect limits.',
+        };
+
+        // --- Grade and Color Mapping (Professional Language) ---
+        function getGradeInfo(score) {
+            let color, assessment, guidance;
+            switch (score) {
+                case 'A+': color = '#27ae60'; assessment = 'Exceptional'; guidance = 'Daily Recommendation'; break;
+                case 'A': color = '#2ecc71'; assessment = 'Excellent'; guidance = 'Regular Consumption'; break;
+                case 'B': color = '#3498db'; assessment = 'Good'; guidance = 'Weekly Consumption'; break;
+                case 'C': color = '#f39c12'; assessment = 'Fair'; guidance = 'Occasional Consumption'; break;
+                case 'D': color = '#e74c3c'; assessment = 'Poor'; guidance = 'Minimize/Avoid'; break;
+                default: color = '#7f8c8d'; assessment = 'N/A'; guidance = 'Review List';
+            }
+            return { color, assessment, guidance };
+        }
+
+        // --- Core Analysis Function ---
+        async function analyzeIngredients() {
+            const rawInput = document.getElementById('ingredientInput').value;
+            const healthSummaryDiv = document.getElementById('healthSummary');
+            const ingredientDetailsDiv = document.getElementById('ingredientDetails');
+            const gradeExplanationDiv = document.getElementById('gradeExplanation');
+            const dietaryClassificationDiv = document.getElementById('dietaryClassification');
+
+            dietaryClassificationDiv.innerHTML = '';
+            healthSummaryDiv.innerHTML = '<p style="text-align: center;"><img src="https://i.gifer.com/ZZ5H.gif" alt="Loading spinner" width="20"> Analyzing... please wait.</p>';
+            ingredientDetailsDiv.innerHTML = '';
+            gradeExplanationDiv.innerHTML = '';
+
+            let cleanedInput = rawInput
+                .replace(/[\n\t\r]/g, '|') 
+                .replace(/,\s*(?=[A-Z])/g, '|') 
+                .replace(/,\s*(?=[a-zA-Z])/g, '|')
+                .replace(/\)\s*,\s*/g, ')|')
+                .replace(/\s{2,}/g, ' ') 
+                .trim();
+
+            let ingredients = cleanedInput.split('|')
+                .map(s => s.trim().replace(/\.$/, '')) 
+                .filter(s => s.length > 0);
+
+            if (ingredients.length === 0) {
+                healthSummaryDiv.innerHTML = '<p style="color: #e74c3c; font-weight: bold;">⚠️ Input is empty. Please enter an ingredient list to begin.</p>';
+                return;
+            }
+
+            try {
+                const analysisData = await fetchAnalysisFromAPI(ingredients);
+                displayResults(analysisData);
+            } catch (error) {
+                console.error("Analysis failed:", error);
+                healthSummaryDiv.innerHTML = `<p style="color: #e74c3c;">❌ Analysis failed. An internal error occurred.</p>`;
+            }
+        }
+
+        /**
+         * CONCEPTUAL FUNCTION: Core scoring logic with comprehensive explanations.
+         */
+        async function fetchAnalysisFromAPI(ingredients) {
+            await new Promise(resolve => setTimeout(resolve, 1500)); 
+
+            let primaryIngredientPercentage = 0;
+            let sugarPosition = -1;
+            let sugarFound = false;
+            
+            let totalIngredients = ingredients.length;
+            let goodHealthIngredients = 0; 
+            let naturalIngredients = 0; 
+            let additiveCount = 0;
+
+            let containsNonVeg = false;
+            let containsEgg = false;
+            let containsDairy = false;
+            let containsAmbiguous = false;
+
+            const placeholderData = ingredients.map((ing, index) => {
+                let safetyRating, simpleExplanation, ratingColor, isNatural, source = 'Vegetable/Plant', qualityNote = null;
+                
+                const lowerIng = ing.toLowerCase();
+                const matchNameCode = lowerIng.match(/([a-z\s&-]+)(?:\s*\(([\d.%,\sA-Za-z]+)\))?/);
+                
+                let codeOrPercent = null; 
+                let name = ing.toLowerCase().trim();
+                
+                if (matchNameCode) {
+                    name = matchNameCode[1].trim();
+                    codeOrPercent = matchNameCode[2] ? matchNameCode[2].replace(/%/g, '').trim() : null;
+                }
+                
+                // 1. Check for Quality/Contaminant Note
+                for (const key in qualityCheckDictionary) {
+                    if (name.includes(key) || ing.toLowerCase().includes(key)) {
+                        qualityNote = qualityCheckDictionary[key];
+                        break;
+                    }
+                }
+
+                // Identify Primary Ingredient / Sugar Position
+                if (codeOrPercent && codeOrPercent.includes('%') && index === 0) {
+                    primaryIngredientPercentage = parseFloat(codeOrPercent);
+                }
+                if (!sugarFound && (name === 'sugar' || name.includes('syrup') || name.includes('fructose'))) {
+                    sugarPosition = index;
+                    sugarFound = true; 
+                }
+
+                // --- 4. ANALYZE BASED ON CONTENT & DIET ---
+                
+                // Initial Dietary Check for Common Ingredients
+                if (name.includes('meat') || name.includes('chicken') || name.includes('beef') || name.includes('pork') || name.includes('fish') || name.includes('gelatin') || name.includes('tallow') || name.includes('ghee')) {
+                    containsNonVeg = true;
+                    source = 'Non-Veg (Meat/Animal Fat)';
+                } else if (name.includes('egg') || name.includes('albumen') || name.includes('yolk')) {
+                    containsEgg = true;
+                    source = 'Contains Egg';
+                } else if (name.includes('milk') || name.includes('cream') || name.includes('butter') || name.includes('cheese') || name.includes('whey') || name.includes('casein')) {
+                    containsDairy = true;
+                    source = 'Contains Dairy';
+                }
+
+                // Determine the source description part, including quality check for veg/plant.
+                let sourceDescription = `The dietary source is **${source}**.`;
+                if (qualityNote) {
+                    // Specific wording for vegetable/plant sources that may contain defects
+                    sourceDescription = `The dietary source is **Vegetable/Plant**, but this ingredient **may contain trace levels of unavoidable defects** (e.g., insect fragments or mold) due to regulatory limits on agricultural products.`;
+                } else if (source === 'Vegetable/Plant') {
+                    // Standard wording for clean vegetable/plant sources
+                    sourceDescription = `The dietary source is **${source}**.`;
+                }
+
+
+                // Additive Check
+                if (name.includes('regulator') || name.includes('stabilizer') || name.includes('preservative') || name.includes('dye') || (codeOrPercent && !isNaN(parseInt(codeOrPercent.split(',')[0])))) {
+                    
+                    let codesFound = [];
+                    if (codeOrPercent) {
+                        const codeList = codeOrPercent.split(/,\s*/);
+                        codeList.forEach(code => {
+                            const trimmedCode = code.trim();
+                            if (codeDictionary[trimmedCode]) {
+                                codesFound.push(codeDictionary[trimmedCode].name);
+                                
+                                const additiveSource = codeDictionary[trimmedCode].source;
+                                if (additiveSource.includes('Non-Veg')) {
+                                    containsNonVeg = true;
+                                    source = additiveSource;
+                                } else if (additiveSource.includes('Ambiguous')) {
+                                    containsAmbiguous = true;
+                                    source = additiveSource;
+                                }
+                            }
+                        });
+                    }
+                    additiveCount++;
+                    ratingColor = '🟠';
+                    safetyRating = 'Synthetic Additive / E-Number';
+                    
+                    // COMPREHENSIVE EXPLANATION: ADDITIVE (Source Description updated based on new 'source' variable)
+                    simpleExplanation = `**IMPACT: Naturalness Risk.** This ingredient is a synthetic or chemically modified additive (${codesFound.join('; ') || 'E-numbers'}) used to improve shelf life, stabilize texture, or enhance color. Its presence indicates heavy industrial processing, detracting from the product's natural integrity. The dietary source is typically **${source}**.`;
+                    isNatural = false;
+                    
+                } else if (name === 'sugar' || name.includes('syrup') || name.includes('fructose')) {
+                    ratingColor = '🔴';
+                    safetyRating = 'High Added Sugar/Sweetener';
+                    
+                    // COMPREHENSIVE EXPLANATION: SUGAR
+                    simpleExplanation = `**IMPACT: Health Risk.** This ingredient is a concentrated caloric sweetener. Given its high position on the ingredient list, the product contains a significant amount of added sugar, which should be **strictly limited** in a regular diet. ${sourceDescription}`;
+                    isNatural = false;
+                    goodHealthIngredients--; 
+
+                } else if (name === 'salt' || name.includes('sodium')) {
+                    ratingColor = '🟡';
+                    safetyRating = 'High Sodium/Flavor Enhancer';
+                    
+                    // COMPREHENSIVE EXPLANATION: SALT
+                    simpleExplanation = `**IMPACT: Health Consideration.** Salt is necessary for flavor and preservation, but it is a primary source of sodium. High intake is strongly linked to hypertension and cardiovascular issues. Monitoring sodium content is important for overall health. ${sourceDescription}`;
+                    isNatural = true;
+
+                } else if (name.includes('powder') || name.includes('condiments')) {
+                    ratingColor = '🟡';
+                    safetyRating = 'Processed Whole Food';
+                    
+                    // COMPREHENSIVE EXPLANATION: PROCESSED FOOD/SPICE
+                    simpleExplanation = `**IMPACT: Quality/Purity.** This component is derived from a whole food (like a vegetable or spice) but is used in a dried, concentrated, or powdered form. While generally low health risk, it suggests that processed forms are used instead of fresh ingredients. ${sourceDescription}`;
+                    isNatural = true;
+
+                } else {
+                    ratingColor = '✅';
+                    safetyRating = 'Low-Risk Ingredient';
+                    
+                    // COMPREHENSIVE EXPLANATION: WHOLE FOOD/LOW-RISK
+                    simpleExplanation = `**IMPACT: Positive.** This is either an unmodified whole food (e.g., fruit, vegetable) or an inherently low-risk, natural component. It contributes positively to the overall health and quality score. ${sourceDescription}`;
+                    isNatural = true;
+                }
+                
+                // Update metrics
+                if (ratingColor !== '🔴' && ratingColor !== '🟠') { 
+                    goodHealthIngredients++;
+                }
+                if (isNatural) {
+                    naturalIngredients++;
+                }
+
+                return {
+                    name: ing,
+                    rating: `${ratingColor} ${safetyRating}`,
+                    explanation: simpleExplanation,
+                    isNatural: isNatural,
+                    source: source,
+                    qualityNote: qualityNote
+                };
+            });
+
+            // --- 5. DIETARY CLASSIFICATION LOGIC (Unchanged) ---
+            let finalDietaryClassification = '100% Veg 🟢';
+            let dietaryEmoji = '🟢';
+            
+            if (containsNonVeg) {
+                finalDietaryClassification = 'Non-Veg 🔴';
+                dietaryEmoji = '🔴';
+            } else if (containsEgg) {
+                finalDietaryClassification = 'Contains Egg 🟡';
+            } else if (containsDairy) {
+                finalDietaryClassification = 'Contains Dairy ⚪';
+                dietaryEmoji = '⚪';
+            } else if (containsAmbiguous) {
+                 finalDietaryClassification = 'Source Unspecified/Ambiguous (e.g., Mono-glycerides) 🟠';
+                 dietaryEmoji = '🟠';
+            }
+
+            // --- 6. SCORING LOGIC (Unchanged) ---
+            
+            const pHealth = totalIngredients > 0 ? ((goodHealthIngredients / totalIngredients) * 100) : 0;
+            const pNatural = totalIngredients > 0 ? ((naturalIngredients / totalIngredients) * 100) : 0;
+            
+            let healthScore = 'A+';
+            let naturalScore = 'A+';
+            let overallScore = 'A+';
+
+            // 1. HEALTH SCORE
+            if (sugarPosition !== -1 && sugarPosition < 3) { healthScore = 'D'; } 
+            else if (sugarPosition !== -1 && sugarPosition < 5) { healthScore = 'C'; } 
+            else if (pHealth < 75) { healthScore = 'B'; } 
+            else if (pHealth < 50) { healthScore = 'C'; }
+
+            // 2. NATURAL SCORE
+            if (additiveCount > 2) { naturalScore = 'D'; } 
+            else if (additiveCount > 0) { naturalScore = 'C'; }
+            if (pNatural < 90 && naturalScore !== 'D') { naturalScore = 'B'; }
+
+            // 3. COMBINED OVERALL SCORE
+            const gradeMap = ['A+', 'A', 'B', 'C', 'D'];
+            const healthIndex = gradeMap.indexOf(healthScore);
+            const naturalIndex = gradeMap.indexOf(naturalScore);
+            const worstIndex = Math.max(healthIndex, naturalIndex);
+            
+            overallScore = gradeMap[worstIndex] || 'A';
+            if (healthScore === 'A+' && naturalScore === 'A') overallScore = 'A';
+            if (healthScore === 'A' && naturalScore === 'A+') overallScore = 'A';
+
+            // FINAL OVERRIDES & MESSAGES
+            let overallMessage = '';
+            if (primaryIngredientPercentage > 0 && primaryIngredientPercentage < 50) {
+                overallMessage += `<br> 🚨 **Dilution Alert:** Primary ingredient (**${ingredients[0]}**) is only **${primaryIngredientPercentage}%**, suggesting it's heavily diluted/filled.`;
+            }
+            if (sugarPosition !== -1 && sugarPosition < 3) {
+                overallMessage += `<br> 🛑 **High Sugar Concentration:** Added sugar is the **#${sugarPosition + 1}** ingredient, severely impacting the Health Grade.`;
+            }
+            if (additiveCount > 0) {
+                overallMessage += `<br> 🧪 **Synthetic Ingredients:** Found **${additiveCount}** synthetic additives, which reduces the Naturalness Grade.`;
+            }
+            
+            return {
+                summary: {
+                    healthScore: healthScore,
+                    naturalScore: naturalScore,
+                    overallScore: overallScore,
+                    message: overallMessage || 'This list receives a strong rating with no major health or processing flags.',
+                    percentHealth: pHealth.toFixed(0),
+                    percentNatural: pNatural.toFixed(0),
+                    dietary: finalDietaryClassification,
+                    dietaryEmoji: dietaryEmoji
+                },
+                details: placeholderData
+            };
+        }
+
+        // --- DISPLAY FUNCTIONS (Unchanged) ---
+
+        function displayResults(data) {
+            const healthSummaryDiv = document.getElementById('healthSummary');
+            const ingredientDetailsDiv = document.getElementById('ingredientDetails');
+            const gradeExplanationDiv = document.getElementById('gradeExplanation');
+            const dietaryClassificationDiv = document.getElementById('dietaryClassification');
+
+            const healthInfo = getGradeInfo(data.summary.healthScore);
+            const naturalInfo = getGradeInfo(data.summary.naturalScore);
+            const overallInfo = getGradeInfo(data.summary.overallScore);
+
+            // 1. Display Dietary Classification
+            dietaryClassificationDiv.innerHTML = `
+                <div class="dietary-box">
+                    ${data.summary.dietaryEmoji} **Dietary Classification:** ${data.summary.dietary}
+                </div>
+            `;
+
+
+            // 2. Display Summary Gauge
+            healthSummaryDiv.innerHTML = `
+                <div class="assessment-summary" style="background-color: ${overallInfo.color}; color: white;">
+                    ${overallInfo.assessment} Quality: Recommended for **${overallInfo.guidance}**.
+                </div>
+                <div class="gauge-container">
+                    <div class="gauge-item">
+                        <h3>Health Grade</h3>
+                        <div class="gauge-circle" style="background-color: ${healthInfo.color};">${data.summary.healthScore}</div>
+                        <p>~${data.summary.percentHealth}% Low-Risk</p>
+                    </div>
+                    <div class="gauge-item">
+                        <h3>Naturalness</h3>
+                        <div class="gauge-circle" style="background-color: ${naturalInfo.color};">${data.summary.naturalScore}</div>
+                    </div>
+                </div>
+                <p style="padding: 0 10px; font-weight: bold;">
+                    ${data.summary.message}
+                </p>
+            `;
+
+            // 3. Display Details
+            ingredientDetailsDiv.innerHTML = '<h3>📝 Ingredient Breakdown (Detailed Assessment)</h3>';
+            data.details.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'ingredient-item';
+                
+                // Display the single, comprehensive explanation
+                itemDiv.innerHTML = `
+                    <h3>${item.name} <span style="font-size: 0.9em; font-weight: normal;">(${item.rating})</span></h3>
+                    <p>${item.explanation}</p>
+                `;
+                
+                // Add the Quality Note as a distinct warning if it exists
+                if (item.qualityNote) {
+                    itemDiv.innerHTML += `<p style="color: #c0392b; font-weight: bold; margin-top: 5px;">⚠️ Quality Standard Note: ${item.qualityNote}</p>`;
+                }
+
+                ingredientDetailsDiv.appendChild(itemDiv);
+            });
+            
+            // 4. Display Grade Explanation
+            gradeExplanationDiv.innerHTML = `
+                <h3>Grade Scale Explanation</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Grade</th>
+                            <th>Quality Assessment</th>
+                            <th>Consumption Guidance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>**A+**</td><td>**Pristine.** Highest quality, virtually zero concerns.</td><td>**Daily Recommendation**</td></tr>
+                        <tr><td>**A**</td><td>**Excellent.** Very clean, minor processed forms only.</td><td>**Regular Consumption**</td></tr>
+                        <tr><td>**B**</td><td>**Good.** Moderate sugar position or one non-critical additive.</td><td>**Weekly Consumption**</td></tr>
+                        <tr><td>**C**</td><td>**Fair.** Sugar/Salt is high up (top 5) or multiple synthetic additives.</td><td>**Occasional Consumption**</td></tr>
+                        <tr><td>**D**</td><td>**Poor.** High sugar/salt concentration and heavy industrial processing.</td><td>**Minimize or Avoid**</td></tr>
+                    </tbody>
+                </table>
+            `;
+        }
+    </script>
+</body>
+</html>
