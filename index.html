@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced 3-Scale Ingredient Analyzer (V10)</title>
+    <title>Advanced 3-Scale Ingredient Analyzer (V11)</title>
     
     <style>
         body {
@@ -179,7 +179,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔍 Advanced Ingredient Assessment (V10)</h1>
+        <h1>🔍 Advanced Ingredient Assessment (V11)</h1>
         <p class="prompt">Enter your ingredient list below. Analysis includes Health, Naturalness, Dietary Classification, and **Fat/Oil Risk Assessment**.</p>
 
         <textarea id="ingredientInput" rows="7" placeholder="Example: Tomato Paste (28%), Palm Oil, Sugar, Salt, Acidity Regulator (260), Stabilizers (415), Onion Powder, Oregano."></textarea>
@@ -219,10 +219,10 @@
             'onion powder': 'Dried, ground vegetables can contain specified levels of mold or insect fragments, regulated by government standards.',
             'tomato paste': 'Processed tomato products have specified limits on mold count and unavoidable field contaminants.',
             'wheat flour': 'Flour has regulatory limits for defects due to storage and processing.',
-            'condiments': 'Depending on specific ingredients, many condiments (spices, purees) fall under regulatory defect limits.',
+            'condiments': 'Depending on specific ingredients, many condiments (spices, purees) falls under regulatory defect limits.',
         };
 
-        // NEW DICTIONARY: High-Saturated/Processed Fats for Health Flagging (V10)
+        // High-Saturated/Processed Fats for Health Flagging
         const highRiskFatDictionary = [
             'palm oil', 'ghee', 'tallow', 'butter', 'coconut oil', 'hydrogenated oil', 'vegetable fat', 'partially hydrogenated'
         ];
@@ -266,9 +266,19 @@
             let ingredients = cleanedInput.split('|')
                 .map(s => s.trim().replace(/\.$/, '')) 
                 .filter(s => s.length > 0);
+            
+            // V11: Input Validation / Filtering
+            ingredients = ingredients.filter(ing => {
+                // Ignore very short strings (like "hi" or "a") that are not numbers/codes
+                if (ing.length <= 2 && isNaN(parseInt(ing))) return false;
+                // Ignore single, common conjunctions/prepositions that might slip through
+                if (['and', 'or', 'for', 'of', 'to'].includes(ing.toLowerCase())) return false;
+                return true;
+            });
+
 
             if (ingredients.length === 0) {
-                healthSummaryDiv.innerHTML = '<p style="color: #e74c3c; font-weight: bold;">⚠️ Input is empty. Please enter an ingredient list to begin.</p>';
+                healthSummaryDiv.innerHTML = '<p style="color: #e74c3c; font-weight: bold;">⚠️ Input is empty or contained only invalid text. Please enter a valid ingredient list to begin.</p>';
                 return;
             }
 
@@ -406,7 +416,7 @@
                     ratingColor = '🟡';
                     safetyRating = 'High Saturated/Processed Fat';
                     
-                    // Set correct source for animal fats
+                    // Set correct source for animal/dairy fats
                     if (name.includes('ghee') || name.includes('butter') || name.includes('cream')) { 
                         source = 'Contains Dairy';
                         containsDairy = true; 
@@ -484,7 +494,6 @@
             // 1. HEALTH SCORE
             if (sugarPosition !== -1 && sugarPosition < 3) { healthScore = 'D'; } 
             else if (sugarPosition !== -1 && sugarPosition < 5) { healthScore = 'C'; } 
-            // RULE: Downgrade if high-risk fat is present or health ingredients are low
             else if (highFatCount > 0 || pHealth < 75) { healthScore = 'B'; } 
             else if (pHealth < 50) { healthScore = 'C'; }
 
@@ -503,12 +512,12 @@
             if (healthScore === 'A+' && naturalScore === 'A') overallScore = 'A';
             if (healthScore === 'A' && naturalScore === 'A+') overallScore = 'A';
 
-            // FINAL OVERRIDES & MESSAGES
+            // FINAL OVERRIDES & DYNAMIC MESSAGES (V11)
             let overallMessage = '';
             if (primaryIngredientPercentage > 0 && primaryIngredientPercentage < 50) {
-                overallMessage += `<br> 🚨 **Dilution Alert:** Primary ingredient (**${ingredients[0]}**) is only **${primaryIngredientPercentage}%**, suggesting it's heavily diluted/filled.`;
+                overallMessage += `<br> 🚨 **Dilution Alert:** Primary ingredient (**${ingredients[0].split('(')[0].trim()}**) is only **${primaryIngredientPercentage}%**, suggesting it's heavily diluted/filled.`;
             }
-            if (sugarPosition !== -1 && sugarPosition < 3) {
+            if (sugarPosition !== -1) {
                 overallMessage += `<br> 🛑 **High Sugar Concentration:** Added sugar is the **#${sugarPosition + 1}** ingredient, severely impacting the Health Grade.`;
             }
             if (additiveCount > 0) {
@@ -522,7 +531,7 @@
                 summary: {
                     healthScore: healthScore,
                     naturalScore: naturalScore,
-                    overallScore: overallScore,
+                    overallScore: overallScore, // Now passed to display
                     message: overallMessage || 'This list receives a strong rating with no major health or processing flags.',
                     percentHealth: pHealth.toFixed(0),
                     percentNatural: pNatural.toFixed(0),
@@ -543,7 +552,7 @@
 
             const healthInfo = getGradeInfo(data.summary.healthScore);
             const naturalInfo = getGradeInfo(data.summary.naturalScore);
-            const overallInfo = getGradeInfo(data.summary.overallScore);
+            const overallInfo = getGradeInfo(data.summary.overallScore); // Use overall score info
 
             // 1. Display Dietary Classification
             dietaryClassificationDiv.innerHTML = `
@@ -556,7 +565,7 @@
             // 2. Display Summary Gauge
             healthSummaryDiv.innerHTML = `
                 <div class="assessment-summary" style="background-color: ${overallInfo.color}; color: white;">
-                    ${overallInfo.assessment} Quality: Recommended for **${overallInfo.guidance}**.
+                    Overall Quality (${data.summary.overallScore}): Recommended for **${overallInfo.guidance}**.
                 </div>
                 <div class="gauge-container">
                     <div class="gauge-item">
@@ -567,6 +576,12 @@
                     <div class="gauge-item">
                         <h3>Naturalness</h3>
                         <div class="gauge-circle" style="background-color: ${naturalInfo.color};">${data.summary.naturalScore}</div>
+                        <p>~${data.summary.percentNatural}% Natural</p>
+                    </div>
+                    <div class="gauge-item">
+                        <h3>Overall Grade</h3>
+                        <div class="gauge-circle" style="background-color: ${overallInfo.color};">${data.summary.overallScore}</div>
+                        <p>Combined Assessment</p>
                     </div>
                 </div>
                 <p style="padding: 0 10px; font-weight: bold;">
